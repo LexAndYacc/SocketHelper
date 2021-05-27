@@ -213,6 +213,10 @@ namespace SocketHelper.Server
         /// <param name="acceptEventArg">发布时要使用的上下文对象服务器侦听套接字上的接受操作</param>
         private void StartAccept(SocketAsyncEventArgs acceptEventArg)
         {
+            if (acceptEventArg != null)
+            {
+                this.maxNumberAcceptedClients.WaitOne();
+            }
             if (acceptEventArg == null)
             {
                 acceptEventArg = new SocketAsyncEventArgs();
@@ -223,7 +227,6 @@ namespace SocketHelper.Server
                 // 套接字必须被清除，因为上下文对象正在被重用。
                 acceptEventArg.AcceptSocket = null;
             }
-            this.maxNumberAcceptedClients.WaitOne();
             //准备一个客户端接入
             if (!listenSocket.AcceptAsync(acceptEventArg))
             {
@@ -462,40 +465,35 @@ namespace SocketHelper.Server
         /// <param name="e">操作对象</param>
         private void CloseClientSocket(SocketAsyncEventArgs e)
         {
-            if (e.LastOperation == SocketAsyncOperation.Receive)
+            int connectID = (int)e.UserToken;
+            ConnectClient client;
+            string clientip;
+            if (!connectClient.TryRemove(connectID, out client))
             {
-                int connectID = (int)e.UserToken;
-                ConnectClient client;
-                string clientip;
-                if (!connectClient.TryGetValue(connectID, out client))
-                {
-                    return;
-                }
-                if (client.socket.Connected == false)
-                {
-                    this.receivePool.Push(e);
-                    this.maxNumberAcceptedClients.Release();
-                    connectClient.TryRemove(connectID, out client);
-                    clientList.TryRemove(connectID, out clientip);
-                    return;
-                }
-                try
-                {
-                    client.socket.Shutdown(SocketShutdown.Both);
-                }
-                // 抛出客户端进程已经关闭
-                catch (Exception) { }
-                client.socket.Close();
+                return;
+            }
+            if (client.socket.Connected == false)
+            {
                 this.receivePool.Push(e);
                 this.maxNumberAcceptedClients.Release();
-                if (OnClose != null)
-                {
-                    OnClose(connectID);
-                }
-                connectClient.TryRemove(connectID, out client);
                 clientList.TryRemove(connectID, out clientip);
-                client = null;
+                return;
             }
+            try
+            {
+                client.socket.Shutdown(SocketShutdown.Both);
+            }
+            // 抛出客户端进程已经关闭
+            catch (Exception) { }
+            client.socket.Close();
+            this.receivePool.Push(e);
+            this.maxNumberAcceptedClients.Release();
+            if (OnClose != null)
+            {
+                OnClose(connectID);
+            }
+            clientList.TryRemove(connectID, out clientip);
+            client = null;
         }
 
         #endregion
