@@ -213,10 +213,6 @@ namespace SocketHelper.Server
         /// <param name="acceptEventArg">发布时要使用的上下文对象服务器侦听套接字上的接受操作</param>
         private void StartAccept(SocketAsyncEventArgs acceptEventArg)
         {
-            if (acceptEventArg != null)
-            {
-                this.maxNumberAcceptedClients.WaitOne();
-            }
             if (acceptEventArg == null)
             {
                 acceptEventArg = new SocketAsyncEventArgs();
@@ -227,6 +223,7 @@ namespace SocketHelper.Server
                 // 套接字必须被清除，因为上下文对象正在被重用。
                 acceptEventArg.AcceptSocket = null;
             }
+            this.maxNumberAcceptedClients.WaitOne();
             //准备一个客户端接入
             if (!listenSocket.AcceptAsync(acceptEventArg))
             {
