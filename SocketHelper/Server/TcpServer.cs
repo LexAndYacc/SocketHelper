@@ -68,6 +68,14 @@ namespace SocketHelper.Server
         /// </summary>
         private int sendthread = 10;
         /// <summary>
+        /// 发送线程
+        /// </summary>
+        private List<Thread> sendThreads = new List<Thread>();
+        /// <summary>
+        /// 心跳线程
+        /// </summary>
+        private Thread heartBeatThread = null;
+        /// <summary>
         /// 需要发送的数据
         /// </summary>
         private ConcurrentQueue<SendingQueue>[] sendQueues;
@@ -166,18 +174,37 @@ namespace SocketHelper.Server
                 thread.IsBackground = true;
                 thread.Priority = ThreadPriority.AboveNormal;
                 thread.Start(i);
+
+                sendThreads.Add(thread);
             }
             //超时机制
             if (overtime > 0)
             {
-                Thread heartbeat = new Thread(new ThreadStart(() =>
+                heartBeatThread = new Thread(new ThreadStart(() =>
                 {
                     Heartbeat();
                 }));
-                heartbeat.IsBackground = true;
-                heartbeat.Priority = ThreadPriority.Lowest;
-                heartbeat.Start();
+                heartBeatThread.IsBackground = true;
+                heartBeatThread.Priority = ThreadPriority.Lowest;
+                heartBeatThread.Start();
             }
+        }
+        /// <summary>
+        /// 停止监听
+        /// </summary>
+        internal void Stop()
+        {
+            if (heartBeatThread == null) return;
+
+            listenSocket.Close();
+            listenSocket.Dispose();
+            heartBeatThread.Abort();
+            heartBeatThread = null;
+            foreach (var thread in sendThreads)
+            {
+                thread.Abort();
+            }
+            sendThreads.Clear();
         }
 
         /// <summary>
