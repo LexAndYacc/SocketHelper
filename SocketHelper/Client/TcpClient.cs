@@ -321,20 +321,18 @@ namespace SocketHelper.Client
             {
                 return;
             }
-            if (e.LastOperation == SocketAsyncOperation.Receive)
+
+            // 关闭与客户端关联的套接字
+            try
             {
-                // 关闭与客户端关联的套接字
-                try
-                {
-                    socket.Shutdown(SocketShutdown.Both);
-                }
-                // 抛出客户端进程已经关闭
-                catch (Exception) { }
-                socket.Close();
-                if (OnClose != null)
-                {
-                    OnClose();
-                }
+                socket.Shutdown(SocketShutdown.Both);
+            }
+            // 抛出客户端进程已经关闭
+            catch (Exception) { }
+            socket.Close();
+            if (OnClose != null)
+            {
+                OnClose();
             }
         }
         #endregion  
